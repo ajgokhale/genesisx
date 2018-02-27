@@ -84,6 +84,12 @@ void runMotors(byte data) {
   }
 }
 
+void flushBuffer(unsigned int remaining) {
+  while (Serial.available() > remaining) {
+    Serial.read();
+  }
+}
+
 void setup() {
   Serial.begin(9600);
   motors[0] = &Motor(1,2,3);
@@ -94,30 +100,40 @@ void setup() {
 }
 
 void loop() {
+  if (Serial.available() == 0) {
+    return;
+  }
+  else {
+    flushBuffer(8);
+  }
   byte packet = Serial.read();
+  Serial.write(packet);
   if (packet == 255) {
     resetClock();
     dataRcvd = 0;
     timestamp = 0;
-    continue;
+    return;
   }
   byte code = packet >> 6;
   packet = bitClear(packet, 7);
   if (dataRcvd == 2 && code >= 2) {
     runMotors(packet);
-    dataRcvd = 0;
-    timestamp = 0;
+    Serial.write(255);
   }
   else if (code == dataRcvd) {
+    if (code == 0) {
+      dataRcvd = 0;
+      timestamp = 0;
+    }
     packet = bitClear(packet, 6);
+    Serial.write(packet);
     timestamp = timestamp << 6;
     timestamp += packet;
     dataRcvd += 1;
+    return;
   }
-  else {
-    dataRcvd = 0;
-    timestamp = 0;
-  }
+  dataRcvd = 0;
+  timestamp = 0;
 }
 
 /* NOTES
