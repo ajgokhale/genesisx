@@ -33,9 +33,13 @@ def sendData(port, code):
     time1 = timestamp // (2**6)
     time2 = timestamp % (2**6)
     data = code + 128
+    packet = [time1, time2, data]
+    writeData(port, packet)
+    '''
     writeData(port, time1)
     writeData(port, time2)
     writeData(port, data)
+    '''
 
 def writeData(port, val):
     port.write(val)
