@@ -1,5 +1,5 @@
-const int DEFAULT_SPEED = 255;
-
+#include <AFMotor.h>
+const int DEFAULT_SPEED = 200;
 /* 
  * Utility Functins 
  */
@@ -10,54 +10,8 @@ boolean sign(int value) {
  return false;
 }
 
-/*Motor Class*/
-class Motor {
-  private:
-    int currentSpeed;
-  public:
-    Motor(unsigned int, unsigned int, unsigned int);
-    void runMotor(bool);
-    void runMotor(int);
-    void stopMotor();
-    unsigned int directionPin;
-    unsigned int speedPin;
-    unsigned int brakePin;
-    void setPins();
-};
-
-Motor::Motor(unsigned int dPin, unsigned int sPin, unsigned int bPin) {
-  this->directionPin = dPin;
-  this->speedPin = sPin;
-  this->brakePin = bPin;
-  this->setPins();
-  this->currentSpeed = 0;
-}
-
-void Motor::setPins() {
-  pinMode(directionPin, OUTPUT);
-  pinMode(brakePin, OUTPUT);
-}
-
-void Motor::runMotor(bool dir) {
-  digitalWrite(this->directionPin, dir);
-  digitalWrite(this->brakePin, LOW);
-  analogWrite(this->speedPin, DEFAULT_SPEED);
-  this->currentSpeed = 2*dir*DEFAULT_SPEED-DEFAULT_SPEED;
-}
-
-void Motor::runMotor(int mSpeed) {
-  digitalWrite(this->directionPin, sign(mSpeed));
-  digitalWrite(this->brakePin, LOW);
-  analogWrite(this->speedPin, abs(mSpeed));
-  this->currentSpeed = mSpeed;
-}
-void Motor::stopMotor() {
-  digitalWrite(this->brakePin, HIGH);
-  analogWrite(this->speedPin, 0);
-}
-
 const unsigned int MOTORS_NUM = 2;
-Motor* motors [MOTORS_NUM] = {};
+AF_DCMotor* motors[MOTORS_NUM] = {};
 const byte ACK = 255;
 unsigned int offset;
 unsigned int timestamp = 0;
@@ -77,11 +31,15 @@ void runMotors(byte data) {
   int motorControl;
   for(int i = 0; i < MOTORS_NUM; i += 1) {
     motorControl = data % 3 - 1;
-    if (motorControl >= 0) {
-      motors[i]->runMotor(motorControl);
-    }
-    else {
-      motors[i]->stopMotor();
+    switch (motorControl) {
+      case -1:
+        motors[i]->run(BACKWARD);
+        break;
+      case 1 :
+        motors[i]->run(FORWARD);
+        break;
+      default:
+        motors[i]->run(RELEASE);
     }
     data = data / 3;
   }
@@ -95,9 +53,12 @@ void flushBuffer(unsigned int remaining) {
 
 void setup() {
   Serial.begin(9600);
-  motors[0] = &Motor(12,3,9);
-  motors[1] = &Motor(13,11,8);
-  offset    = 0;
+  for (int i = 0; i < MOTORS_NUM; i++) {
+    motors[i] = &AF_DCMotor(i + 1, MOTOR12_1KHZ);
+    motors[i]->setSpeed(DEFAULT_SPEED);
+  }
+  motor2.setSpeed(200);
+  offset = 0;
 }
 
 void loop() {
