@@ -57,11 +57,13 @@ void setup() {
     motors[i] = &AF_DCMotor(i + 1, MOTOR12_1KHZ);
     motors[i]->setSpeed(DEFAULT_SPEED);
   }
-  motor2.setSpeed(200);
   offset = 0;
 }
 
 void loop() {
+  //FOR TESTING//
+  Serial.write(255);
+  ///////////////
   if (Serial.available() == 0) {
     return;
   }
@@ -127,3 +129,4 @@ void loop() {
  */
 
  
+
