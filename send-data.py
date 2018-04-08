@@ -7,6 +7,8 @@ import wave
 
 FILE_NAME = 'dummy-data.csv'
 ACK = 255
+PORT = 'COM4' 
+# '/dev/ttyUSB0'
 
 def millis():
     return int(round(time.time() * 1000))
@@ -31,9 +33,10 @@ def packIntegerAsULong(value):
 def sendData(port, code):
     timestamp = int(round((millis() - OFFSET)/ 10.0)) % 3000
     time1 = timestamp // (2**6)
-    time2 = timestamp % (2**6)
-    data = code + 128
+    time2 = timestamp % (2**6) + 64
+    data  = code               + 128
     packet = [time1, time2, data]
+    # packet = [data]
     writeData(port, packet)
     '''
     writeData(port, time1)
@@ -53,9 +56,12 @@ def resetClock(port):
 
 def connectToSerial():
     try:
-        return serial.Serial('/dev/ttyUSB0', 9600, timeout = 0)
+        return serial.Serial(PORT, 9600, timeout = 0)
     except:
         raise Exception('Cannot connect')
+
+def printRead(ser):
+    print(int.from_bytes(ser.read(), byteorder = 'big'), end='')
 
 def main():
     ser = connectToSerial()
@@ -63,6 +69,10 @@ def main():
     while True:
         for code in codes:
             sendData(ser, code)
+            time.sleep(1.5)
+            for i in range(4):
+                printRead(ser)
+            print()
 
 
 main()

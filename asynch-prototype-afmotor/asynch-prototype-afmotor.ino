@@ -10,7 +10,7 @@ boolean sign(int value) {
  return false;
 }
 
-const unsigned int MOTORS_NUM = 2;
+const unsigned int MOTORS_NUM = 4;
 AF_DCMotor* motors[MOTORS_NUM] = {};
 const byte ACK = 255;
 unsigned int offset;
@@ -31,6 +31,7 @@ void runMotors(byte data) {
   int motorControl;
   for(int i = 0; i < MOTORS_NUM; i += 1) {
     motorControl = data % 3 - 1;
+    Serial.write(motorControl + 1);
     switch (motorControl) {
       case -1:
         motors[i]->run(BACKWARD);
@@ -61,9 +62,6 @@ void setup() {
 }
 
 void loop() {
-  //FOR TESTING//
-  Serial.write(255);
-  ///////////////
   if (Serial.available() == 0) {
     return;
   }
@@ -71,7 +69,6 @@ void loop() {
     flushBuffer(8);
   }
   byte packet = Serial.read();
-  Serial.write(packet);
   if (packet == ACK) {
     resetClock();
     dataRcvd  = 0;
@@ -82,16 +79,15 @@ void loop() {
   packet = bitClear(packet, 7);
   if (dataRcvd == 2 && code >= 2) {
     runMotors(packet);
-    Serial.write(255);
+    //Serial.write(packet);
   }
   else if (code == dataRcvd) {
     if (code == 0) {
       dataRcvd  = 0;
       timestamp = 0;
     }
-    packet    = bitClear(packet, 6);
-    Serial.write(packet);
-    timestamp =  timestamp << 6;
+    packet     = bitClear(packet, 6);
+    timestamp  = timestamp << 6;
     timestamp += packet;
     dataRcvd  += 1;
     return;
