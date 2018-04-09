@@ -56,7 +56,7 @@ void setup() {
   Serial.begin(9600);
   for (int i = 0; i < MOTORS_NUM; i++) {
     motors[i] = &AF_DCMotor(i + 1, MOTOR12_1KHZ);
-    motors[i]->setSpeed(DEFAULT_SPEED);
+    motors[i]->run(RELEASE);
   }
   offset = 0;
 }
