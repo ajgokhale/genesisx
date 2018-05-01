@@ -4,6 +4,8 @@ const long minRotation = 0;
 const long maxRotation = 1000;
 //MOTOR VARIANCE LIMITERS (DUMMY)
 const double varThreshold = 5000;
+const unsigned int button1 = 12;
+const unsigned int button2 = 13;
 
 /*Utility Functions*/
 boolean sign(int value) { 
@@ -16,13 +18,13 @@ boolean sign(int value) {
 /*Motor Class*/
 class Motor {
   private:
-    int currentSpeed;
     unsigned int speedPin; //PWM pin
     unsigned int directionPin;
     unsigned int brakePin;
   public:
     Motor(unsigned int, unsigned int, 
       unsigned int, unsigned int, unsigned int);
+    int currentSpeed;
     void runMotor(bool);
     void runMotor(int);
     void stopMotor();
@@ -32,6 +34,7 @@ class Motor {
     bool lastAVal;
     bool lastBVal;
     long count;
+    long prevCount;
     double motorSpeed; //UNIT: count per second
                        //calculated every 10 milliseconds
                        //need to optimize this number^
@@ -47,8 +50,9 @@ Motor::Motor(unsigned int fPin, unsigned int rPin, unsigned int bPin,
   this->setPins();
   this->currentSpeed = 0;
   this->count = 0;
-  this->lastAVal = LOW;//digitalRead(this->encoderPinA);
-  this->lastBVal = LOW;//digitalRead(this->encoderPinB);
+  this->lastAVal = LOW;
+  this->lastBVal = LOW;
+  this->prevCount = 0;
 }
 
 void Motor::setPins() {
@@ -64,7 +68,7 @@ void Motor::setPins() {
 void Motor::runMotor(bool dir) {
   this->currentSpeed = (2 * dir - 1) * DEFAULT_SPEED;
   analogWrite(this->speedPin,     DEFAULT_SPEED);
-  analogWrite(this->directionPin, dir);
+  digitalWrite(this->directionPin, dir);
   digitalWrite(this->brakePin, HIGH);
 }
 
@@ -177,18 +181,26 @@ void pciSetup(byte pin) {
   PCIFR |= bit(digitalPinToPCICRbit(pin));
   PCICR |= bit(digitalPinToPCICRbit(pin));
 }
+
+void runIfOff(int motorNum, boolean dir) {
+  if (motors[motorNum]->currentSpeed == 0) {
+    Serial.print("Motor "); Serial.print(motorNum); Serial.println(" running...");
+    motors[motorNum]->runMotor(dir);
+  }
+}
+
 long tme = millis();
 boolean state = false;
 void setup() {
   Serial.begin(9600);
   
   pciSetup(2); pciSetup(4);  pciSetup(6);  pciSetup(7);
-  pciSetup(8); pciSetup(10); pciSetup(12); pciSetup(13);
+  pciSetup(8); pciSetup(10); //pciSetup(12); pciSetup(13);
   
   Motor motor0(3, 14, 15, 2, 4);
   motors[0] = &motor0;
   
-  Motor motor1(5, 14, 15, 12, 13);
+  Motor motor1(5, 14, 15, 2, 4);
   motors[1] = &motor1;
   
   Motor motor2(9, 14, 15, 8, 10);
@@ -196,9 +208,9 @@ void setup() {
   
   Motor motor3(11, 16, 17, 6, 7);
   motors[3] = &motor3;
-  //motors[2]->runMotor(true);
-  //motors[3]->runMotor(true);
-  //motors[3]->stopMotor();
+
+  pinMode(button1, INPUT);
+  pinMode(button2, INPUT);
 
 }
 
@@ -206,10 +218,10 @@ boolean checkRange() {
   for(int i = 0; i < MOTORS_NUM; i += 1) {
     if (motors[i]->count < minRotation ||
         motors[i]->count > maxRotation) {
-      return false;
+      return true;
     }
   }
-  return true;
+  return false;
 }
 
 boolean checkConsistency() {
@@ -224,10 +236,22 @@ boolean checkConsistency() {
   }
   double variance = totalVar / (double) MOTORS_NUM;
   if (variance > varThreshold) {
-    return false;
+    return true;
   }
   else {
-    return true;
+    return false;
+  }
+}
+
+boolean checkStall() {
+  boolean stallState = false;
+  for (int i = 0; i < MOTORS_NUM; i += 1) {
+    long diff = motors[i]->count - motors[i]->prevCount;
+    if (sign(diff) != sign(motors[i]->currentSpeed) ||
+      motors[i]->currentSpeed != 0 && diff == 0) {
+      
+    }
+    motors[i]->prevCount = motors[i]->count; 
   }
 }
 
@@ -239,13 +263,29 @@ void loop() {
     Serial.println(motors[0]->count);
     tme = millis();
   }
+  if (digitalRead(button1) == LOW) {
+    runIfOff(0, true);
+    runIfOff(1, true);
+    runIfOff(2, true);
+  } else if (digitalRead(button2) == LOW) {
+    runIfOff(0, false);
+    runIfOff(1, false);
+    runIfOff(2, false);
+  } else {
+    motors[0]->stopMotor();
+    motors[1]->stopMotor();
+    motors[2]->stopMotor();
+  }
+  
 /*
-  if (!checkRange() ||
-      !checkConsistency()) {
+  if (checkRange() || 
+    checkConsistency() ||
+    checkStall()) {
     for(int i = 0; i < MOTORS_NUM; i += 1) {
       motors[i]->stopMotor();
     }    
   }
-*/    
+*/
+  
 }
 
